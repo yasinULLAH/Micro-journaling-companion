@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Micro-Journaling Companion</title>
+    <style>
+        /* Basic Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Body Styling */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* Container */
+        .container {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+
+        /* Heading */
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2d3748;
+        }
+
+        /* Journal Form */
+        .journal-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .journal-form textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 5px;
+            resize: none;
+            font-size: 16px;
+        }
+
+        .journal-form button {
+            padding: 10px;
+            border: none;
+            background-color: #3182ce;
+            color: #ffffff;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .journal-form button:hover {
+            background-color: #2b6cb0;
+        }
+
+        /* Journal Entries */
+        .entries {
+            margin-bottom: 30px;
+        }
+
+        .entries h2 {
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+
+        .entry-list {
+            list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .entry-item {
+            background: #edf2f7;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .entry-item::before {
+            content: "";
+            position: absolute;
+            left: -5px;
+            top: 15px;
+            width: 10px;
+            height: 10px;
+            background-color: #3182ce;
+            border-radius: 50%;
+        }
+
+        .entry-date {
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 5px;
+        }
+
+        /* Calendar */
+        .calendar {
+            margin-bottom: 30px;
+        }
+
+        .calendar h2 {
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .calendar-day {
+            padding: 10px;
+            background: #e2e8f0;
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .calendar-day:hover {
+            background: #cbd5e0;
+        }
+
+        .calendar-day.active {
+            background: #3182ce;
+            color: #ffffff;
+        }
+
+        /* Export Button */
+        .export-btn {
+            padding: 10px;
+            border: none;
+            background-color: #38a169;
+            color: #ffffff;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            width: 100%;
+        }
+
+        .export-btn:hover {
+            background-color: #2f855a;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .calendar-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Micro-Journaling Companion</h1>
+        <form class="journal-form" id="journal-form">
+            <textarea id="journal-entry" placeholder="Write your daily journal entry here..." required></textarea>
+            <button type="submit">Add Entry</button>
+        </form>
+        <div class="entries">
+            <h2>Journal Entries</h2>
+            <ul class="entry-list" id="entry-list">
+                <!-- Entries will be added here -->
+            </ul>
+        </div>
+        <div class="calendar">
+            <h2>Calendar</h2>
+            <div class="calendar-grid" id="calendar-grid">
+                <!-- Calendar days will be generated here -->
+            </div>
+        </div>
+        <button class="export-btn" id="export-btn">Export as TXT</button>
+    </div>
+
+    <script>
+        const journalForm = document.getElementById('journal-form');
+        const journalEntry = document.getElementById('journal-entry');
+        const entryList = document.getElementById('entry-list');
+        const calendarGrid = document.getElementById('calendar-grid');
+        const exportBtn = document.getElementById('export-btn');
+
+        let entries = {};
+
+        // Load entries from localStorage
+        window.onload = function() {
+            if (localStorage.getItem('entries')) {
+                entries = JSON.parse(localStorage.getItem('entries'));
+                displayEntries();
+                generateCalendar();
+            } else {
+                generateCalendar();
+            }
+        }
+
+        // Add Entry
+        journalForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const today = new Date().toISOString().split('T')[0];
+            const text = journalEntry.value.trim();
+            if (text === '') return;
+            entries[today] = text;
+            saveEntries();
+            displayEntries();
+            generateCalendar();
+            journalForm.reset();
+        });
+
+        // Save to localStorage
+        function saveEntries() {
+            localStorage.setItem('entries', JSON.stringify(entries));
+        }
+
+        // Display Entries
+        function displayEntries() {
+            entryList.innerHTML = '';
+            const sortedDates = Object.keys(entries).sort((a, b) => new Date(b) - new Date(a));
+            sortedDates.forEach(date => {
+                const li = document.createElement('li');
+                li.classList.add('entry-item');
+
+                const dateP = document.createElement('p');
+                dateP.classList.add('entry-date');
+                dateP.textContent = formatDate(date);
+                li.appendChild(dateP);
+
+                const textP = document.createElement('p');
+                textP.textContent = entries[date];
+                li.appendChild(textP);
+
+                entryList.appendChild(li);
+            });
+        }
+
+        // Generate Calendar
+        function generateCalendar() {
+            calendarGrid.innerHTML = '';
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth();
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            // Create blank cells for days before the first day
+            for (let i = 0; i < firstDay; i++) {
+                const blankCell = document.createElement('div');
+                calendarGrid.appendChild(blankCell);
+            }
+
+            // Create cells for each day
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day).toISOString().split('T')[0];
+                const dayCell = document.createElement('div');
+                dayCell.classList.add('calendar-day');
+                dayCell.textContent = day;
+
+                if (entries[date]) {
+                    dayCell.classList.add('active');
+                    dayCell.title = entries[date];
+                }
+
+                dayCell.addEventListener('click', () => {
+                    if (entries[date]) {
+                        alert(`Entry for ${formatDate(date)}:\n\n${entries[date]}`);
+                    } else {
+                        const entry = prompt('No entry for this day. Add your journal entry:');
+                        if (entry) {
+                            entries[date] = entry.trim();
+                            saveEntries();
+                            displayEntries();
+                            generateCalendar();
+                        }
+                    }
+                });
+
+                calendarGrid.appendChild(dayCell);
+            }
+        }
+
+        // Format Date
+        function formatDate(dateStr) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const date = new Date(dateStr);
+            return date.toLocaleDateString(undefined, options);
+        }
+
+        // Export Entries as TXT
+        exportBtn.addEventListener('click', function() {
+            let content = "Micro-Journal Entries\n\n";
+            const sortedDates = Object.keys(entries).sort();
+            sortedDates.forEach(date => {
+                content += `${formatDate(date)}:\n${entries[date]}\n\n`;
+            });
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'micro_journal_entries.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>
